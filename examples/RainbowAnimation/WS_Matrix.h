@@ -1,0 +1,13 @@
+#ifndef _WS_Matrix_H_
+#define _WS_Matrix_H_
+#include <Adafruit_NeoPixel.h>
+
+#define RGB_Control_PIN   14       
+#define Matrix_Row        8     
+#define Matrix_Col        8       
+#define RGB_COUNT         64
+
+void Matrix_Init();
+void RainbowAnimation();
+
+#endif

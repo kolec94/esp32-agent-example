@@ -1,0 +1,18 @@
+{
+  "alwaysAllow": {
+    "Bash(lsusb)": true,
+    "Bash(ls -la /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || echo \"No ACM/USB devices found\")": true,
+    "Bash(./bin/arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc examples/Snake)": true,
+    "Bash(./bin/arduino-cli config set network.connection_timeout 1000s)": true,
+    "Bash(GODEBUG=http2client=0 ./bin/arduino-cli --log-level debug core install esp32:esp32)": true,
+    "Bash(./bin/arduino-cli lib search SensorQMI8658)": true,
+    "Bash(./bin/arduino-cli lib search QMI8658)": true,
+    "Bash(./bin/arduino-cli lib install SensorLib)": true,
+    "Bash(find /home/distiller/Arduino/libraries/SensorLib -name \"*QMI8658*\" -type f | head -5)": true,
+    "Bash(./bin/arduino-cli lib install \"Adafruit NeoPixel\")": true,
+    "Bash(./bin/arduino-cli upload --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc --port /dev/ttyACM1 examples/Snake)": true,
+    "Bash(./bin/arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc examples/wifi-slam)": true,
+    "Bash(./bin/arduino-cli lib install FastLED)": true,
+    "Bash(./bin/arduino-cli upload --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc --port /dev/ttyACM1 examples/wifi-slam)": true
+  }
+}
