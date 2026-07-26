@@ -147,6 +147,7 @@ jobs:
 
   deploy:
     needs: assemble
+    if: always() && needs.assemble.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
