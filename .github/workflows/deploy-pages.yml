@@ -5,10 +5,15 @@ on:
     branches: [main]
     paths:
       - 'examples/**'
-      - 'scripts/build-firmware.sh'
+      - 'scripts/**'
       - 'web/**'
       - '.github/workflows/deploy-pages.yml'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_rebuild_all:
+        description: 'Rebuild every sketch, ignoring the incremental diff'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,46 +25,128 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.discover.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: discover
+        run: |
+          chmod +x scripts/*.sh
+          all_json=$(scripts/discover-sketches.sh | jq -R -s -c 'split("\n") | map(select(length>0))')
+          echo "All discovered sketches: $all_json"
+
+          force_all="false"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_rebuild_all }}" = "true" ]; then
+            force_all="true"
+            echo "Forcing full rebuild (manual dispatch input)"
+          fi
+
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            force_all="true"
+            echo "Forcing full rebuild (no previous commit to diff against)"
+          fi
+
+          if [ "$force_all" = "true" ]; then
+            changed_json="$all_json"
+          else
+            changed_json=$(scripts/changed-sketches.sh "$before" "${{ github.sha }}")
+          fi
+          echo "Changed by diff: $changed_json"
+
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          pages_url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}"
+          live_index=$(curl -fsSL "$pages_url/firmware/index.json" 2>/dev/null || echo '{"sketches":[]}')
+
+          changed_json=$(jq -n --argjson all "$all_json" --argjson changed "$changed_json" --argjson live "$live_index" '
+            ($live.sketches // []) as $liveList
+            | ($liveList | map(select(.ok == true) | .name)) as $published
+            | ($all - $published) as $neverBuilt
+            | ($changed + $neverBuilt) | unique
+          ')
+
+          echo "Sketches to build this run: $changed_json"
+          echo "changed=$changed_json" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: discover
+    if: needs.discover.outputs.changed != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sketch: ${{ fromJson(needs.discover.outputs.changed) }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install arduino-cli
-        uses: arduino/setup-arduino-cli@v1
+      - uses: arduino/setup-arduino-cli@v1
 
-      - name: Install ESP32 core
+      - name: Install ESP32 core and libraries
         run: |
           arduino-cli config init --overwrite
           arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
-
-      - name: Install libraries
-        run: |
           arduino-cli lib install FastLED
           arduino-cli lib install "Adafruit NeoPixel"
           arduino-cli lib install SensorLib
 
-      - name: Build all example firmwares
+      - name: Build ${{ matrix.sketch }}
         run: |
           chmod +x scripts/build-firmware.sh
-          scripts/build-firmware.sh
+          scripts/build-firmware.sh "${{ matrix.sketch }}"
 
-      - name: Assemble Pages site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.sketch }}
+          path: firmware-out/${{ matrix.sketch }}
+          retention-days: 7
+
+  assemble:
+    needs: [discover, build]
+    if: always() && needs.discover.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch previously published site as an incremental-build cache
         run: |
-          mkdir -p _site
-          cp web/index.html _site/index.html
-          cp -r firmware-out _site/firmware
-          # logs and .d dep files aren't useful on the published site
-          find _site/firmware -maxdepth 1 -name "*.log" -delete
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          pages_url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}"
+          mkdir -p cache/firmware
+          curl -fsSL "$pages_url/firmware/index.json" -o cache/firmware/index.json || echo '{"sketches":[]}' > cache/firmware/index.json
+          for name in $(jq -r '.sketches[] | select(.ok == true) | .name' cache/firmware/index.json); do
+            mkdir -p "cache/firmware/$name"
+            for f in manifest.json bootloader.bin partitions.bin boot_app0.bin firmware.bin; do
+              curl -fsSL "$pages_url/firmware/$name/$f" -o "cache/firmware/$name/$f" || true
+            done
+          done
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: downloaded
+          if-no-artifact-found: warn
+
+      - name: Assemble site
+        run: |
+          chmod +x scripts/assemble-site.sh
+          scripts/assemble-site.sh cache downloaded site
+
+      - name: Copy flasher page
+        run: cp web/index.html site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: site
 
   deploy:
-    needs: build
+    needs: assemble
     runs-on: ubuntu-latest
     environment:
       name: github-pages

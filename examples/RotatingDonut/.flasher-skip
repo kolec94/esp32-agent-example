@@ -1,0 +1,4 @@
+Not included in the GitHub Pages web flasher: this sketch is PlatformIO-only.
+It relies on `lib_extra_dirs = ../../lib` (see platformio.ini) and
+parent-relative includes (`../lib/MatrixUtil/MatrixUtil.h`) that arduino-cli
+does not resolve the same way. Build it with PlatformIO instead.
