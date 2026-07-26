@@ -3,6 +3,7 @@
 #include <FastLED.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include "WS_QMI8658.h"
 
 #define MATRIX_WIDTH 8
@@ -16,6 +17,12 @@ const char* ap_password = "ledmatrix123";
 
 CRGB leds[NUM_LEDS];
 WebServer server(80);
+
+// Captive portal: redirects any DNS lookup to our own IP so connecting to
+// the AP pops the control page automatically instead of requiring you to
+// type http://192.168.4.1 by hand.
+DNSServer dnsServer;
+const byte DNS_PORT = 53;
 
 // Animation variables
 unsigned long lastAnimationUpdate = 0;
@@ -233,8 +240,8 @@ void handleRoot() {
 
     <div class="control-row">
       <label>Brightness:</label>
-      <input type="range" id="brightnessSlider" min="10" max="255" step="5" value="100">
-      <span class="slider-value" id="brightnessValue">100</span>
+      <input type="range" id="brightnessSlider" min="10" max="255" step="5" value="50">
+      <span class="slider-value" id="brightnessValue">50</span>
     </div>
 
     <div class="divider">
@@ -867,7 +874,7 @@ void setup() {
 
   // Initialize LEDs
   FastLED.addLeds<WS2812B, LED_PIN, RGB>(leds, NUM_LEDS);
-  FastLED.setBrightness(100);
+  FastLED.setBrightness(50);
   FastLED.clear();
   FastLED.show();
   Serial.println("LEDs initialized");
@@ -893,10 +900,14 @@ void setup() {
     Serial.println(ap_password);
     Serial.print("  IP address: ");
     Serial.println(WiFi.softAPIP());
-    Serial.println("\n>>> Connect to WiFi and go to http://192.168.4.1 <<<\n");
+    Serial.println("\n>>> Connect to WiFi - the control page should pop up automatically <<<\n");
   } else {
     Serial.println("Failed to create Access Point!");
   }
+
+  // Answer every DNS query with our own IP, so the OS's captive-portal
+  // check gets redirected here and auto-opens the control page.
+  dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
 
   // Setup web server routes
   server.on("/", handleRoot);
@@ -918,6 +929,7 @@ void setup() {
   server.on("/snake/stop", handleSnakeStop);
   server.on("/snake/dir", handleSnakeDir);
   server.on("/snake/state", handleSnakeState);
+  server.onNotFound(handleRoot);
 
   server.begin();
   Serial.println("Web server started");
@@ -929,6 +941,7 @@ void setup() {
 }
 
 void loop() {
+  dnsServer.processNextRequest();
   server.handleClient();
 
   if (snakeModeActive) {

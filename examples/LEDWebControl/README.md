@@ -5,8 +5,12 @@ access point and a control page — no router or app required, just a browser.
 
 ## Features
 
+- **Captive portal**: connecting to the WiFi network should pop the control
+  page up automatically (like public WiFi login pages) - no need to type an
+  IP address
 - **Manual control**: click any LED to set its color, fill/clear the whole grid
-- **Live sliders**: animation speed and brightness, applied instantly
+- **Live sliders**: animation speed and brightness, applied instantly (starts
+  at a dim default brightness of 50/255 - turn it up if you want more)
 - **Animation presets**: Rainbow, Spiral, Wave, Pulse, Fire, Twinkle, Chase, Matrix Rain
 - **Snake game**: tilt the physical board to steer (onboard QMI8658 IMU), with
   on-screen arrow buttons as a fallback and a live score display
@@ -29,8 +33,8 @@ access point and a control page — no router or app required, just a browser.
 3. Open the Serial Monitor at 115200 baud to confirm the access point started
    and to see the assigned IP (should be `192.168.4.1`).
 4. On your phone/laptop, connect to WiFi network **`ESP32-LED-Matrix`**
-   (password `ledmatrix123`).
-5. Visit `http://192.168.4.1` in a browser.
+   (password `ledmatrix123`). The control page should open automatically
+   (captive portal); if it doesn't, visit `http://192.168.4.1` manually.
 
 ## Using It
 
@@ -65,5 +69,6 @@ access point and a control page — no router or app required, just a browser.
 |---|---|
 | Serial says "QMI8658 IMU not found" | Snake still works via the on-screen arrows; check I2C wiring (SDA=11, SCL=12) if you expect tilt control |
 | Can't reach `192.168.4.1` | Confirm you're connected to the `ESP32-LED-Matrix` WiFi network, not your home network |
+| Captive portal doesn't pop up | Some OSes/browsers suppress it or cache a previous "no portal" result; just open `http://192.168.4.1` directly |
 | Colors look wrong | Adjust the `RGB` color order in the `FastLED.addLeds<WS2812B, LED_PIN, RGB>` line |
 | Grid still cramped on a very small screen | Zoom out in the browser, or lower the `--cell-size` cap in the `<style>` block |
