@@ -17,39 +17,68 @@
       flex-direction: column;
       align-items: center;
     }
-    .card {
-      background: #2a2a2a;
-      border-radius: 10px;
-      padding: clamp(14px, 3vw, 24px);
-      max-width: 520px;
+    .page {
+      max-width: 900px;
       width: 100%;
-      margin-bottom: 20px;
     }
     h1 { font-size: clamp(1.2rem, 5vw, 1.6rem); text-align: center; margin-bottom: 4px; }
-    .subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 20px; }
-    label { font-weight: bold; display: block; margin-bottom: 8px; }
-    select {
-      width: 100%;
-      padding: 10px;
-      border-radius: 5px;
-      border: none;
-      background: #1a1a1a;
-      color: #fff;
-      font-size: 15px;
+    .subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 24px; }
+
+    .featured {
+      background: linear-gradient(135deg, #2a2a2a, #23331f);
+      border: 1px solid #4CAF50;
+      border-radius: 12px;
+      padding: clamp(16px, 3vw, 26px);
+      margin-bottom: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .featured-tag {
+      display: inline-block;
+      background: #4CAF50;
+      color: #10240f;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    .featured h2 { margin: 0; font-size: 1.2rem; }
+
+    section.category { margin-bottom: 28px; }
+    section.category h2 {
+      font-size: 1.05rem;
+      border-bottom: 1px solid #3a3a3a;
+      padding-bottom: 8px;
       margin-bottom: 14px;
     }
-    .desc {
-      font-size: 14px;
-      color: #ccc;
-      margin-bottom: 14px;
-      min-height: 20px;
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 14px;
     }
+
+    .sketch-card {
+      background: #2a2a2a;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sketch-card h3, .featured h2 { font-size: 1rem; }
+    .sketch-card h3 { margin: 0; }
+    .desc { font-size: 13px; color: #ccc; flex-grow: 1; }
+    .featured .desc { font-size: 14px; }
+
     .usage-bar-track {
       background: #1a1a1a;
       border-radius: 5px;
-      height: 18px;
+      height: 14px;
       overflow: hidden;
-      margin-bottom: 6px;
     }
     .usage-bar-fill {
       height: 100%;
@@ -58,66 +87,54 @@
     }
     .usage-bar-fill.warn { background: #FFC107; }
     .usage-bar-fill.over { background: #f44336; }
-    .usage-text { font-size: 13px; color: #ccc; margin-bottom: 14px; }
-    .banner {
-      padding: 10px 14px;
+    .usage-text { font-size: 12px; color: #999; }
+
+    .status-note {
+      font-size: 13px;
+      padding: 8px 10px;
       border-radius: 5px;
-      font-size: 14px;
-      margin-bottom: 14px;
-      display: none;
     }
-    .banner.warn { background: #5a4a00; color: #ffe082; display: block; }
-    .banner.over { background: #5a1a1a; color: #ffb3b3; display: block; }
-    .banner.fail { background: #444; color: #ccc; display: block; }
-    esp-web-install-button {
-      display: block;
-    }
+    .status-note.warn { background: #5a4a00; color: #ffe082; }
+    .status-note.over { background: #5a1a1a; color: #ffb3b3; }
+    .status-note.fail { background: #444; color: #ccc; }
+
+    esp-web-install-button { display: block; }
     button, esp-web-install-button::part(button) {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
+      padding: 10px;
+      font-size: 15px;
       border: none;
       border-radius: 5px;
       background: #4CAF50;
       color: white;
       cursor: pointer;
     }
+
     .info {
       font-size: 13px;
       color: #999;
-      max-width: 520px;
       text-align: center;
       line-height: 1.5;
+      margin-top: 10px;
     }
     a { color: #8fd3ff; }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="page">
     <h1>🌈 ESP32 LED Matrix Flasher</h1>
-    <div class="subtitle">Pick a sketch, plug in your board via USB, and flash it straight from the browser.</div>
+    <div class="subtitle">Plug in your board via USB (bootloader mode) and flash straight from the browser.</div>
 
-    <label for="sketchSelect">Firmware</label>
-    <select id="sketchSelect"><option>Loading…</option></select>
-    <div class="desc" id="sketchDesc"></div>
+    <div id="content">Loading firmware list…</div>
 
-    <div id="usageWrap" style="display:none;">
-      <div class="usage-bar-track"><div class="usage-bar-fill" id="usageBar"></div></div>
-      <div class="usage-text" id="usageText"></div>
+    <div class="info">
+      Requires a Chromium-based browser (Chrome, Edge, Opera) with Web Serial support.
+      Firmware is rebuilt automatically from
+      <a href="https://github.com/kolec94/esp32-agent-example" target="_blank">the source repo</a>
+      when a sketch changes. Flash-usage percentages come from the actual compiled binary size for the
+      partition scheme assumed in <code>scripts/build-firmware.sh</code> - if your board uses a
+      different flash size/partition table, sizes may not reflect it exactly.
     </div>
-
-    <div class="banner" id="banner"></div>
-
-    <esp-web-install-button id="installBtn"></esp-web-install-button>
-  </div>
-
-  <div class="info">
-    Requires a Chromium-based browser (Chrome, Edge, Opera) with Web Serial support.
-    Firmware is rebuilt automatically from
-    <a href="https://github.com/kolec94/esp32-agent-example" target="_blank">the source repo</a>
-    on every push. Flash-usage percentages come from the actual compiled binary size for the
-    partition scheme assumed in <code>scripts/build-firmware.sh</code> - if your board uses a
-    different flash size/partition table, sizes may not reflect it exactly.
   </div>
 
   <script>
@@ -138,77 +155,108 @@
       LEDWebControl: "Hosts its own WiFi access point + web control panel: click-to-draw grid, animation presets, sliders, and a gyro-controlled Snake game"
     };
 
-    const select = document.getElementById('sketchSelect');
-    const descEl = document.getElementById('sketchDesc');
-    const usageWrap = document.getElementById('usageWrap');
-    const usageBar = document.getElementById('usageBar');
-    const usageText = document.getElementById('usageText');
-    const banner = document.getElementById('banner');
-    const installBtn = document.getElementById('installBtn');
+    // Section layout - LEDWebControl gets its own "featured" treatment since
+    // it bundles every animation and the Snake game behind one always-on web
+    // page, rather than being just another single-purpose alternative.
+    const FEATURED = "LEDWebControl";
+    const CATEGORIES = [
+      { title: "Animations", sketches: ["RGBRainbow", "RainEffect", "RainbowAnimation", "SimpleColorTest", "SimpleRainbow", "SimpleTest", "SpiralRainbow", "WaveshareRainbow", "BlinkTest"] },
+      { title: "Games", sketches: ["Snake", "tilt-demo"] },
+      { title: "Other", sketches: ["wifi-slam"] }
+    ];
 
-    let sketches = [];
+    function statusNote(s) {
+      if (!s.ok) return { level: 'fail', text: 'Failed to build or did not fit the flash partition - unavailable to flash.' };
+      if (s.percent > 100) return { level: 'over', text: `Does not fit: ${s.percent}% of the available app partition. Flashing disabled.` };
+      if (s.percent > 90) return { level: 'warn', text: `Tight fit: ${s.percent}% of the available flash partition used.` };
+      return null;
+    }
 
-    function render(name) {
-      const s = sketches.find(x => x.name === name);
-      banner.className = 'banner';
-      banner.textContent = '';
-      usageWrap.style.display = 'none';
-      installBtn.removeAttribute('manifest');
+    function usageBlock(s) {
+      const pct = Math.min(s.percent, 100);
+      const cls = s.percent > 100 ? 'over' : s.percent > 90 ? 'warn' : '';
+      return `
+        <div class="usage-bar-track"><div class="usage-bar-fill ${cls}" style="width:${pct}%"></div></div>
+        <div class="usage-text">${s.usedBytes.toLocaleString()} / ${s.maxBytes.toLocaleString()} bytes (${s.percent}%)</div>
+      `;
+    }
 
-      if (!s) return;
-      descEl.textContent = DESCRIPTIONS[s.name] || '';
+    function cardBody(s) {
+      const note = statusNote(s);
+      const desc = DESCRIPTIONS[s.name] || '';
+      const usage = s.ok ? usageBlock(s) : '';
+      const noteHtml = note ? `<div class="status-note ${note.level}">${note.text}</div>` : '';
+      const installHtml = (s.ok && s.percent <= 100)
+        ? `<esp-web-install-button manifest="firmware/${s.name}/manifest.json"></esp-web-install-button>`
+        : '';
+      return `<div class="desc">${desc}</div>${usage}${noteHtml}${installHtml}`;
+    }
 
-      if (!s.ok) {
-        banner.classList.add('fail');
-        banner.textContent = 'This sketch failed to build or did not fit the flash partition - unavailable to flash.';
-        return;
+    function render(sketches) {
+      const byName = Object.fromEntries(sketches.map(s => [s.name, s]));
+      const content = document.getElementById('content');
+      content.innerHTML = '';
+
+      const featured = byName[FEATURED];
+      if (featured) {
+        const el = document.createElement('div');
+        el.className = 'featured';
+        el.innerHTML = `
+          <span class="featured-tag">Recommended</span>
+          <h2>${FEATURED}</h2>
+          ${cardBody(featured)}
+        `;
+        content.appendChild(el);
       }
 
-      usageWrap.style.display = 'block';
-      const pct = Math.min(s.percent, 999);
-      usageBar.style.width = Math.min(pct, 100) + '%';
-      usageBar.className = 'usage-bar-fill' + (s.percent > 100 ? ' over' : s.percent > 90 ? ' warn' : '');
-      usageText.textContent = `${s.usedBytes.toLocaleString()} / ${s.maxBytes.toLocaleString()} bytes (${s.percent}%)`;
+      const categorized = new Set([FEATURED]);
+      CATEGORIES.forEach(cat => cat.sketches.forEach(n => categorized.add(n)));
 
-      if (s.percent > 100) {
-        banner.classList.add('over');
-        banner.textContent = `Does not fit: this firmware is ${s.percent}% of the available app partition. Flashing is disabled for this sketch.`;
-        return;
-      } else if (s.percent > 90) {
-        banner.classList.add('warn');
-        banner.textContent = `Tight fit: ${s.percent}% of the available flash partition is used.`;
+      CATEGORIES.forEach(cat => {
+        const present = cat.sketches.filter(n => byName[n]);
+        if (!present.length) return;
+
+        const section = document.createElement('section');
+        section.className = 'category';
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        present.forEach(name => {
+          const card = document.createElement('div');
+          card.className = 'sketch-card';
+          card.innerHTML = `<h3>${name}</h3>${cardBody(byName[name])}`;
+          grid.appendChild(card);
+        });
+        section.innerHTML = `<h2>${cat.title}</h2>`;
+        section.appendChild(grid);
+        content.appendChild(section);
+      });
+
+      // Anything published but not explicitly categorized above still shows
+      // up, so a newly added example doesn't just silently disappear.
+      const leftover = sketches.filter(s => !categorized.has(s.name));
+      if (leftover.length) {
+        const section = document.createElement('section');
+        section.className = 'category';
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        leftover.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'sketch-card';
+          card.innerHTML = `<h3>${s.name}</h3>${cardBody(s)}`;
+          grid.appendChild(card);
+        });
+        section.innerHTML = '<h2>Other</h2>';
+        section.appendChild(grid);
+        content.appendChild(section);
       }
-
-      installBtn.setAttribute('manifest', `firmware/${s.name}/manifest.json`);
     }
 
     fetch('firmware/index.json')
       .then(r => r.json())
-      .then(data => {
-        sketches = data.sketches || [];
-        select.innerHTML = '';
-
-        sketches.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.name;
-          let label = s.name;
-          if (!s.ok) label += ' — unavailable';
-          else if (s.percent > 100) label += ` — too large (${s.percent}%)`;
-          else if (s.percent > 90) label += ` — tight fit (${s.percent}%)`;
-          opt.textContent = label;
-          select.appendChild(opt);
-        });
-
-        const firstGood = sketches.find(s => s.ok && s.percent <= 100);
-        if (firstGood) select.value = firstGood.name;
-
-        select.onchange = () => render(select.value);
-        render(select.value);
-      })
-      .catch(err => {
-        select.innerHTML = '<option>Failed to load firmware list</option>';
-        banner.classList.add('fail');
-        banner.textContent = 'Could not load firmware/index.json - has the build workflow run yet?';
+      .then(data => render(data.sketches || []))
+      .catch(() => {
+        document.getElementById('content').innerHTML =
+          '<div class="status-note fail">Could not load firmware/index.json - has the build workflow run yet?</div>';
       });
   </script>
 </body>
