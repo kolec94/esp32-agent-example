@@ -114,6 +114,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - run: chmod +x scripts/*.sh
+
       - name: Fetch previously published site as an incremental-build cache
         run: |
           repo_name="${GITHUB_REPOSITORY#*/}"
@@ -134,9 +136,7 @@ jobs:
           if-no-artifact-found: warn
 
       - name: Assemble site
-        run: |
-          chmod +x scripts/assemble-site.sh
-          scripts/assemble-site.sh cache downloaded site
+        run: scripts/assemble-site.sh cache downloaded site
 
       - name: Copy flasher page
         run: cp web/index.html site/index.html
