@@ -1,0 +1,71 @@
+name: Build firmware and deploy flasher page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/**'
+      - 'scripts/build-firmware.sh'
+      - 'web/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install arduino-cli
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh -s -- -b "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install FastLED
+          arduino-cli lib install "Adafruit NeoPixel"
+          arduino-cli lib install SensorLib
+
+      - name: Build all example firmwares
+        run: |
+          chmod +x scripts/build-firmware.sh
+          scripts/build-firmware.sh
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p _site
+          cp web/index.html _site/index.html
+          cp -r firmware-out _site/firmware
+          # logs and .d dep files aren't useful on the published site
+          find _site/firmware -maxdepth 1 -name "*.log" -delete
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

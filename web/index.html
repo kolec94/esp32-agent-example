@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 LED Matrix Web Flasher</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      margin: 0;
+      padding: clamp(12px, 4vw, 32px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card {
+      background: #2a2a2a;
+      border-radius: 10px;
+      padding: clamp(14px, 3vw, 24px);
+      max-width: 520px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    h1 { font-size: clamp(1.2rem, 5vw, 1.6rem); text-align: center; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #aaa; font-size: 14px; margin-bottom: 20px; }
+    label { font-weight: bold; display: block; margin-bottom: 8px; }
+    select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+      background: #1a1a1a;
+      color: #fff;
+      font-size: 15px;
+      margin-bottom: 14px;
+    }
+    .desc {
+      font-size: 14px;
+      color: #ccc;
+      margin-bottom: 14px;
+      min-height: 20px;
+    }
+    .usage-bar-track {
+      background: #1a1a1a;
+      border-radius: 5px;
+      height: 18px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .usage-bar-fill {
+      height: 100%;
+      background: #4CAF50;
+      transition: width 0.2s;
+    }
+    .usage-bar-fill.warn { background: #FFC107; }
+    .usage-bar-fill.over { background: #f44336; }
+    .usage-text { font-size: 13px; color: #ccc; margin-bottom: 14px; }
+    .banner {
+      padding: 10px 14px;
+      border-radius: 5px;
+      font-size: 14px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .banner.warn { background: #5a4a00; color: #ffe082; display: block; }
+    .banner.over { background: #5a1a1a; color: #ffb3b3; display: block; }
+    .banner.fail { background: #444; color: #ccc; display: block; }
+    esp-web-install-button {
+      display: block;
+    }
+    button, esp-web-install-button::part(button) {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    .info {
+      font-size: 13px;
+      color: #999;
+      max-width: 520px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    a { color: #8fd3ff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌈 ESP32 LED Matrix Flasher</h1>
+    <div class="subtitle">Pick a sketch, plug in your board via USB, and flash it straight from the browser.</div>
+
+    <label for="sketchSelect">Firmware</label>
+    <select id="sketchSelect"><option>Loading…</option></select>
+    <div class="desc" id="sketchDesc"></div>
+
+    <div id="usageWrap" style="display:none;">
+      <div class="usage-bar-track"><div class="usage-bar-fill" id="usageBar"></div></div>
+      <div class="usage-text" id="usageText"></div>
+    </div>
+
+    <div class="banner" id="banner"></div>
+
+    <esp-web-install-button id="installBtn"></esp-web-install-button>
+  </div>
+
+  <div class="info">
+    Requires a Chromium-based browser (Chrome, Edge, Opera) with Web Serial support.
+    Firmware is rebuilt automatically from
+    <a href="https://github.com/kolec94/esp32-agent-example" target="_blank">the source repo</a>
+    on every push. Flash-usage percentages come from the actual compiled binary size for the
+    partition scheme assumed in <code>scripts/build-firmware.sh</code> - if your board uses a
+    different flash size/partition table, sizes may not reflect it exactly.
+  </div>
+
+  <script>
+    // Keep in sync with the table in the repo's top-level README.
+    const DESCRIPTIONS = {
+      SimpleTest: "Minimal sanity check that the matrix lights up",
+      BlinkTest: "Basic on/off blink test",
+      SimpleColorTest: "Cycles solid colors across the matrix",
+      SimpleRainbow: "Basic rainbow color-cycling animation",
+      RGBRainbow: "Basic rainbow color-cycling animation",
+      SpiralRainbow: "Rainbow colors following a spiral pattern",
+      WaveshareRainbow: "Rainbow animation tuned for the Waveshare board's wiring",
+      RainbowAnimation: "Rainbow animation driven through the standalone WS_Matrix driver",
+      RainEffect: "Falling \"rain drop\" particle animation",
+      Snake: "Classic Snake game controlled by tilting the board (QMI8658 IMU)",
+      "tilt-demo": "Minimal demo of reading the IMU to drive on-screen movement",
+      "wifi-slam": "Visualizes a chosen WiFi network's signal strength as a color gradient",
+      LEDWebControl: "Hosts its own WiFi access point + web control panel: click-to-draw grid, animation presets, sliders, and a gyro-controlled Snake game"
+    };
+
+    const select = document.getElementById('sketchSelect');
+    const descEl = document.getElementById('sketchDesc');
+    const usageWrap = document.getElementById('usageWrap');
+    const usageBar = document.getElementById('usageBar');
+    const usageText = document.getElementById('usageText');
+    const banner = document.getElementById('banner');
+    const installBtn = document.getElementById('installBtn');
+
+    let sketches = [];
+
+    function render(name) {
+      const s = sketches.find(x => x.name === name);
+      banner.className = 'banner';
+      banner.textContent = '';
+      usageWrap.style.display = 'none';
+      installBtn.removeAttribute('manifest');
+
+      if (!s) return;
+      descEl.textContent = DESCRIPTIONS[s.name] || '';
+
+      if (!s.ok) {
+        banner.classList.add('fail');
+        banner.textContent = 'This sketch failed to build or did not fit the flash partition - unavailable to flash.';
+        return;
+      }
+
+      usageWrap.style.display = 'block';
+      const pct = Math.min(s.percent, 999);
+      usageBar.style.width = Math.min(pct, 100) + '%';
+      usageBar.className = 'usage-bar-fill' + (s.percent > 100 ? ' over' : s.percent > 90 ? ' warn' : '');
+      usageText.textContent = `${s.usedBytes.toLocaleString()} / ${s.maxBytes.toLocaleString()} bytes (${s.percent}%)`;
+
+      if (s.percent > 100) {
+        banner.classList.add('over');
+        banner.textContent = `Does not fit: this firmware is ${s.percent}% of the available app partition. Flashing is disabled for this sketch.`;
+        return;
+      } else if (s.percent > 90) {
+        banner.classList.add('warn');
+        banner.textContent = `Tight fit: ${s.percent}% of the available flash partition is used.`;
+      }
+
+      installBtn.setAttribute('manifest', `firmware/${s.name}/manifest.json`);
+    }
+
+    fetch('firmware/index.json')
+      .then(r => r.json())
+      .then(data => {
+        sketches = data.sketches || [];
+        select.innerHTML = '';
+
+        sketches.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          let label = s.name;
+          if (!s.ok) label += ' — unavailable';
+          else if (s.percent > 100) label += ` — too large (${s.percent}%)`;
+          else if (s.percent > 90) label += ` — tight fit (${s.percent}%)`;
+          opt.textContent = label;
+          select.appendChild(opt);
+        });
+
+        const firstGood = sketches.find(s => s.ok && s.percent <= 100);
+        if (firstGood) select.value = firstGood.name;
+
+        select.onchange = () => render(select.value);
+        render(select.value);
+      })
+      .catch(err => {
+        select.innerHTML = '<option>Failed to load firmware list</option>';
+        banner.classList.add('fail');
+        banner.textContent = 'Could not load firmware/index.json - has the build workflow run yet?';
+      });
+  </script>
+</body>
+</html>
