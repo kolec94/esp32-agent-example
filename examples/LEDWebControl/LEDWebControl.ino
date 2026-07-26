@@ -76,9 +76,6 @@ void handleRoot() {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     * { box-sizing: border-box; }
-    :root {
-      --cell-size: min(48px, (100vw - 64px) / 8);
-    }
     body {
       font-family: Arial, sans-serif;
       background: #1a1a1a;
@@ -100,17 +97,18 @@ void handleRoot() {
     }
     .matrix-container {
       display: grid;
-      grid-template-columns: repeat(8, var(--cell-size));
-      grid-gap: clamp(2px, 1vw, 4px);
+      grid-template-columns: repeat(8, 1fr);
+      gap: clamp(2px, 1vw, 4px);
+      width: min(420px, 100%);
       margin-bottom: 20px;
-      padding: clamp(8px, 3vw, 20px);
+      padding: clamp(8px, 3vw, 16px);
       background: #2a2a2a;
       border-radius: 10px;
-      max-width: 100%;
     }
     .led {
-      width: var(--cell-size);
-      height: var(--cell-size);
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      min-width: 0;
       border: 2px solid #444;
       border-radius: 5px;
       cursor: pointer;
