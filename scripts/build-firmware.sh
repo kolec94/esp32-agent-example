@@ -16,9 +16,13 @@ dir="examples/$name"
 OUT_ROOT="firmware-out"
 dest="$OUT_ROOT/$name"
 
-# NOTE: assumes an 8MB-flash, PSRAM-equipped ESP32-S3 (Waveshare
-# ESP32-S3-Matrix). If your board differs, adjust FQBN accordingly.
-FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,PartitionScheme=default,FlashSize=8M,PSRAM=enabled"
+# NOTE: assumes a 4MB-flash, PSRAM-equipped ESP32-S3 (Waveshare
+# ESP32-S3-Matrix). Confirmed via hardware: a build with FlashSize=8M
+# produced a firmware image header mismatch against the real 4MB chip,
+# causing a boot-time assert loop (spi_flash: Detected size(4096k)
+# smaller than the size in the binary image header(8192k)). If your
+# board differs, adjust FQBN accordingly.
+FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,PartitionScheme=default,FlashSize=4M,PSRAM=enabled"
 
 rm -rf "$dest"
 mkdir -p "$dest"
