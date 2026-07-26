@@ -63,7 +63,7 @@ jobs:
           pages_url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}"
           live_index=$(curl -fsSL "$pages_url/firmware/index.json" 2>/dev/null || echo '{"sketches":[]}')
 
-          changed_json=$(jq -n --argjson all "$all_json" --argjson changed "$changed_json" --argjson live "$live_index" '
+          changed_json=$(jq -n -c --argjson all "$all_json" --argjson changed "$changed_json" --argjson live "$live_index" '
             ($live.sketches // []) as $liveList
             | ($liveList | map(select(.ok == true) | .name)) as $published
             | ($all - $published) as $neverBuilt

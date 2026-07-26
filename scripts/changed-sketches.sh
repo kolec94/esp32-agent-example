@@ -36,6 +36,6 @@ changed_json=$(echo "$diff_files" \
 # Intersect with the discovered/buildable list, so a change to a
 # .flasher-skip'd example (or one that no longer exists) doesn't try to
 # build something that isn't there.
-jq -n --argjson all "$all_json" --argjson changed "$changed_json" '
+jq -n -c --argjson all "$all_json" --argjson changed "$changed_json" '
   $all | map(select(. as $n | $changed | index($n) != null))
 '
