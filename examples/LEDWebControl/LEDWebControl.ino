@@ -53,6 +53,12 @@ bool imuReady = false;
 
 // Tilt accumulation (mirrors the standalone Snake example's algorithm)
 float tiltXA = 0, tiltXB = 0, tiltYA = 0, tiltYB = 0;
+// When false, Snake ignores the IMU even if one is present (on-screen arrows only)
+bool snakeTiltEnabled = true;
+
+// Tilt Ball demo state - rolls a single dot around the matrix by tilting the board
+int8_t tiltBallX = 4, tiltBallY = 4;
+float tiltDemoXA = 0, tiltDemoXB = 0, tiltDemoYA = 0, tiltDemoYB = 0;
 
 uint16_t XY(uint8_t x, uint8_t y) {
   if (x >= MATRIX_WIDTH || y >= MATRIX_HEIGHT) return NUM_LEDS;
@@ -266,6 +272,10 @@ void handleRoot() {
       </div>
 
       <div class="control-row">
+        <button onclick="startAnimation('tiltdemo')" style="background: #00BFFF; color:#222;">&#127919; Tilt Ball</button>
+      </div>
+
+      <div class="control-row">
         <button onclick="stopAnimation()" class="clear-btn">&#9209;&#65039; Stop Animation</button>
       </div>
     </div>
@@ -276,6 +286,13 @@ void handleRoot() {
       <div class="control-row">
         <button onclick="startSnake()" style="background: #2E8B57;">&#9654;&#65039; Play Snake</button>
         <button onclick="stopSnake()" class="clear-btn">&#9209;&#65039; Stop Game</button>
+      </div>
+
+      <div class="control-row">
+        <label style="min-width:auto; font-weight:normal;">
+          <input type="checkbox" id="tiltToggle" checked onchange="setSnakeTilt(this.checked)">
+          Tilt control
+        </label>
       </div>
 
       <div class="dpad">
@@ -414,6 +431,10 @@ void handleRoot() {
       fetch(`/snake/dir?d=${d}`).catch(error => console.error('Error setting direction:', error));
     }
 
+    function setSnakeTilt(on) {
+      fetch(`/snake/tilt?on=${on ? 1 : 0}`).catch(error => console.error('Error setting tilt mode:', error));
+    }
+
     function startSnakePolling() {
       stopSnakePolling();
       snakePollTimer = setInterval(pollSnakeState, 300);
@@ -431,6 +452,10 @@ void handleRoot() {
       fetch('/snake/state')
         .then(response => response.json())
         .then(state => {
+          const tiltToggle = document.getElementById('tiltToggle');
+          tiltToggle.disabled = !state.imu;
+          tiltToggle.checked = state.tiltEnabled;
+
           if (!state.active) {
             snakeStatus.textContent = 'Not running';
             stopSnakePolling();
@@ -438,6 +463,7 @@ void handleRoot() {
           }
           let text = `Score: ${state.score}`;
           if (!state.imu) text += ' (no IMU found - use arrows)';
+          else if (!state.tiltEnabled) text += ' (tilt off - use arrows)';
           if (state.gameOver) text += ' - Game Over, restarting...';
           snakeStatus.textContent = text;
         })
@@ -854,14 +880,59 @@ void handleSnakeDir() {
   server.send(200, "text/plain", "OK");
 }
 
+void handleSnakeTilt() {
+  if (server.hasArg("on")) {
+    snakeTiltEnabled = server.arg("on").toInt() != 0;
+    server.send(200, "text/plain", "OK");
+    return;
+  }
+  server.send(400, "text/plain", "Invalid parameters");
+}
+
 void handleSnakeState() {
   String json = "{";
   json += "\"active\":"; json += (snakeModeActive ? "true" : "false"); json += ",";
   json += "\"gameOver\":"; json += (snakeGameOver ? "true" : "false"); json += ",";
   json += "\"score\":"; json += String(snakeScore); json += ",";
-  json += "\"imu\":"; json += (imuReady ? "true" : "false");
+  json += "\"imu\":"; json += (imuReady ? "true" : "false"); json += ",";
+  json += "\"tiltEnabled\":"; json += (snakeTiltEnabled ? "true" : "false");
   json += "}";
   server.send(200, "application/json", json);
+}
+
+// Tilt Ball demo: rolls a single dot around the matrix by tilting the board.
+// Reuses Snake's tilt-accumulation algorithm but clamps at the edges instead of wrapping.
+void tiltDemoUpdate() {
+  if (!(Accel.x > 0.15 || Accel.x < 0 || Accel.y > 0.15 || Accel.y < 0)) return;
+
+  if (Accel.x > 0.15) { tiltDemoXA += Accel.x * 10; tiltDemoXB = 0; }
+  else if (Accel.x < 0) { tiltDemoXB += fabs(Accel.x) * 10; tiltDemoXA = 0; }
+  else { tiltDemoXA = 0; tiltDemoXB = 0; }
+
+  if (Accel.y > 0.15) { tiltDemoYA += Accel.y * 10; tiltDemoYB = 0; }
+  else if (Accel.y < 0) { tiltDemoYB += fabs(Accel.y) * 10; tiltDemoYA = 0; }
+  else { tiltDemoYA = 0; tiltDemoYB = 0; }
+
+  if (tiltDemoXA >= 10) { tiltBallY++; tiltDemoXA = 0; tiltDemoXB = 0; }
+  if (tiltDemoXB >= 10) { tiltBallY--; tiltDemoXA = 0; tiltDemoXB = 0; }
+  if (tiltDemoYA >= 10) { tiltBallX--; tiltDemoYA = 0; tiltDemoYB = 0; }
+  if (tiltDemoYB >= 10) { tiltBallX++; tiltDemoYA = 0; tiltDemoYB = 0; }
+
+  tiltBallX = constrain(tiltBallX, 0, MATRIX_WIDTH - 1);
+  tiltBallY = constrain(tiltBallY, 0, MATRIX_HEIGHT - 1);
+}
+
+void drawTiltDemo() {
+  FastLED.clear();
+  leds[XY(tiltBallX, tiltBallY)] = CRGB(0, 180, 255);
+}
+
+void handleTiltDemo() {
+  startAnimationCommon("tiltdemo");
+  tiltBallX = MATRIX_WIDTH / 2;
+  tiltBallY = MATRIX_HEIGHT / 2;
+  tiltDemoXA = tiltDemoXB = tiltDemoYA = tiltDemoYB = 0;
+  server.send(200, "text/plain", imuReady ? "Tilt demo started" : "Tilt demo started (no IMU found - ball won't move)");
 }
 
 void setup() {
@@ -922,10 +993,12 @@ void setup() {
   server.on("/twinkle", handleTwinkle);
   server.on("/chase", handleChase);
   server.on("/matrixrain", handleMatrixRain);
+  server.on("/tiltdemo", handleTiltDemo);
   server.on("/stop", handleStopAnimation);
   server.on("/snake/start", handleSnakeStart);
   server.on("/snake/stop", handleSnakeStop);
   server.on("/snake/dir", handleSnakeDir);
+  server.on("/snake/tilt", handleSnakeTilt);
   server.on("/snake/state", handleSnakeState);
   server.onNotFound(handleRoot);
 
@@ -943,7 +1016,7 @@ void loop() {
   server.handleClient();
 
   if (snakeModeActive) {
-    if (imuReady) {
+    if (imuReady && snakeTiltEnabled) {
       QMI8658_Loop();
       snakeUpdateTiltDirection();
     }
@@ -986,6 +1059,12 @@ void loop() {
       drawChase();
     } else if (currentAnimation == "matrixrain") {
       drawMatrixRain();
+    } else if (currentAnimation == "tiltdemo") {
+      if (imuReady) {
+        QMI8658_Loop();
+        tiltDemoUpdate();
+      }
+      drawTiltDemo();
     }
 
     FastLED.show();

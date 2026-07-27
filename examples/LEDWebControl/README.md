@@ -11,9 +11,12 @@ access point and a control page — no router or app required, just a browser.
 - **Manual control**: click any LED to set its color, fill/clear the whole grid
 - **Live sliders**: animation speed and brightness, applied instantly (starts
   at a dim default brightness of 50/255 - turn it up if you want more)
-- **Animation presets**: Rainbow, Spiral, Wave, Pulse, Fire, Twinkle, Chase, Matrix Rain
+- **Animation presets**: Rainbow, Spiral, Wave, Pulse, Fire, Twinkle, Chase, Matrix
+  Rain, Tilt Ball (rolls a dot around the grid as you tilt the board)
 - **Snake game**: tilt the physical board to steer (onboard QMI8658 IMU), with
-  on-screen arrow buttons as a fallback and a live score display
+  on-screen arrow buttons as a fallback and a live score display. Tilt control
+  can be toggled off from the web UI to use the arrows even when an IMU is
+  present.
 - Mobile-friendly layout — the matrix scales to fit narrow screens
 
 ## Requirements
@@ -45,7 +48,12 @@ access point and a control page — no router or app required, just a browser.
 - **Snake**: tap "Play Snake", then physically tilt the board to steer. Use the
   on-screen arrows if you're testing without tilting, or if no IMU is detected
   (the Serial Monitor and the status line under the game controls will say so).
-  The snake wraps around the matrix edges; eating food increases speed and score.
+  Untick "Tilt control" to force arrow-only play even with an IMU present -
+  the checkbox is disabled automatically if no IMU was found. The snake wraps
+  around the matrix edges; eating food increases speed and score.
+- **Tilt Ball**: tap "Tilt Ball" to roll a single dot around the grid by tilting
+  the board - a minimal demo of the IMU tilt controls, unrelated to Snake's game
+  state. Requires an IMU; without one the dot just sits still.
 
 ## HTTP Endpoints
 
@@ -56,12 +64,13 @@ access point and a control page — no router or app required, just a browser.
 | `/clearall` | — | Clear matrix, stop any animation/game |
 | `/setspeed` | `ms` | Set animation frame delay (20–2000ms) |
 | `/setbrightness` | `level` | Set global brightness (0–255) |
-| `/rainbow` `/spiral` `/wave` `/pulse` `/fire` `/twinkle` `/chase` `/matrixrain` | — | Start that animation |
+| `/rainbow` `/spiral` `/wave` `/pulse` `/fire` `/twinkle` `/chase` `/matrixrain` `/tiltdemo` | — | Start that animation |
 | `/stop` | — | Stop the current animation |
 | `/snake/start` | — | Start/restart Snake |
 | `/snake/stop` | — | Stop Snake, clear matrix |
 | `/snake/dir` | `d` (0=up,1=right,2=down,3=left) | Manually set snake direction |
-| `/snake/state` | — | JSON: `{active, gameOver, score, imu}` |
+| `/snake/tilt` | `on` (0 or 1) | Enable/disable tilt control for Snake |
+| `/snake/state` | — | JSON: `{active, gameOver, score, imu, tiltEnabled}` |
 
 ## Troubleshooting
 
