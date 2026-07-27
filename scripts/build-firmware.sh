@@ -22,7 +22,14 @@ dest="$OUT_ROOT/$name"
 # causing a boot-time assert loop (spi_flash: Detected size(4096k)
 # smaller than the size in the binary image header(8192k)). If your
 # board differs, adjust FQBN accordingly.
-FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,PartitionScheme=default,FlashSize=4M,PSRAM=enabled"
+#
+# PartitionScheme=huge_app gives a single 3MB app partition (no OTA, no
+# filesystem) instead of the default's ~1.2MB dual-OTA layout. None of
+# these sketches use OTA updates or a filesystem (SPIFFS/LittleFS), so
+# that space was pure overhead - the default scheme was pushing sketches
+# like LEDWebControl (WiFi+WebServer+FastLED+SensorLib) over the 1.2MB
+# app partition limit.
+FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,PartitionScheme=huge_app,FlashSize=4M,PSRAM=enabled"
 
 rm -rf "$dest"
 mkdir -p "$dest"
